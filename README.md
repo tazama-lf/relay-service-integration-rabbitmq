@@ -1,49 +1,42 @@
 # RabbitMQ Relay Plugin
 
-A TypeScript-based RabbitMQ plugin for the Tazama relay service that provides reliable message transport functionality with support for both development and production environments.
+A TypeScript plugin for relaying messages to RabbitMQ, with secure connections, comprehensive logging, and deep APM integration. Designed for production-grade messaging and easy drop-in integration with the Tazama relay service.
 
 ## Overview
 
-This plugin implements the `ITransportPlugin` interface and provides a seamless way to relay messages to RabbitMQ queues. It includes built-in support for:
-
-- Development and production environments
-- TLS/SSL connections for secure production deployments
-- Application Performance Monitoring (APM) integration
-- Comprehensive logging
-- Multiple data format support (Buffer, string, object)
+The RabbitMQ Relay Plugin is a transport plugin that enables applications to reliably publish messages to RabbitMQ queues. It wraps the underlying AMQP client, providing a simple, type-safe interface for initialization and message relaying. With built-in Application Performance Monitoring (APM) and robust logging, the plugin makes it easy to monitor, trace, and troubleshoot all messaging operations.
 
 ## Features
 
-- **Environment-specific configuration**: Automatic detection of development vs production environments
-- **TLS Support**: Secure connections in production using base64-encoded certificates
-- **APM Integration**: Built-in transaction and span tracking for performance monitoring
-- **Type Safety**: Full TypeScript support with proper type definitions
-- **Flexible Data Handling**: Supports Buffer, string, and object data types
-- **Error Handling**: Comprehensive error handling with detailed logging
-- **High Test Coverage**: 95%+ test coverage with comprehensive unit tests
+- Connect to RabbitMQ with configurable connection settings (dev and production)
+- Support for TLS/SSL connections with CA certificate validation
+- Publish various data types (Buffer, string, object) to configurable queues
+- Automatic data type conversion and serialization
+- APM integration for distributed tracing and monitoring
+- Detailed logging for debugging and operational visibility
+- Simple API: just two main methods—`init()` and `relay()`
+- Written in TypeScript with full type safety
+- Fully tested with Jest
+
+## Core Components
+
+- **RabbitMQRelayPlugin Class**: Implements connection handling and message publishing
+- **Configuration Module**: Loads environment-based settings
+- **Interface Definitions**: Strongly typed plugin contract
 
 ## Installation
 
 ```bash
-npm install @paysys-labs/rabbitmq-relay-plugin
+npm install rabbitmq-relay-plugin
 ```
 
 ## Configuration
 
-The plugin requires the following environment variables:
-
-### Required Variables
-
-| Variable                    | Type   | Description                                                                                                  |
-| --------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
-| `DESTINATION_TRANSPORT_URL` | string | RabbitMQ connection URL (e.g., `amqp://localhost:5672` for dev, `amqps://prod-rabbitmq:5671` for production) |
-| `PRODUCER_STREAM`           | string | Name of the RabbitMQ queue to send messages to                                                               |
-
-### Optional Variables
-
-| Variable          | Type   | Description                                                                     |
-| ----------------- | ------ | ------------------------------------------------------------------------------- |
-| `RABBITMQ_TLS_CA` | string | Base64-encoded TLS certificate for secure connections (required for production) |
+| Environment Variable      | Description                                  | Default Value                    |
+| ------------------------- | -------------------------------------------- | -------------------------------- |
+| DESTINATION_TRANSPORT_URL | The URL of the RABBITMQ server to connect to | amqplib://localhost:5672         |
+| PRODUCER_STREAM           | The subject to publish messages to           | example.subject                  |
+| RABBITMQ_TLS_CA           | Path to the Certificate Authority file       | (required for TLS in production) |
 
 ### Example Environment Configuration
 
@@ -61,7 +54,7 @@ PRODUCER_STREAM=my-queue
 NODE_ENV=production
 DESTINATION_TRANSPORT_URL=amqps://prod-rabbitmq:5671
 PRODUCER_STREAM=my-queue
-RABBITMQ_TLS_CA=LS0tLS1CRUdJTi... # base64-encoded certificate
+RABBITMQ_TLS_CA=/path/to/ca_certificate.pem
 ```
 
 ## Usage
@@ -69,7 +62,7 @@ RABBITMQ_TLS_CA=LS0tLS1CRUdJTi... # base64-encoded certificate
 ### Basic Usage
 
 ```typescript
-import RabbitMQRelayPlugin from '@paysys-labs/rabbitmq-relay-plugin';
+import RabbitMQRelayPlugin from 'rabbitmq-relay-plugin';
 import { LoggerService } from '@tazama-lf/frms-coe-lib';
 import { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 
@@ -128,7 +121,7 @@ Initializes the RabbitMQ connection and channel. Must be called before using the
 
 - Connection errors are logged but not thrown to allow graceful degradation
 
-#### `relay(data: Uint8Array): Promise<void>`
+#### `relay(data: Uint8Array | string | object): Promise<void>`
 
 Relays data to the configured RabbitMQ queue.
 
@@ -142,7 +135,7 @@ Relays data to the configured RabbitMQ queue.
 
 **Data Handling:**
 
-- `Buffer`: Sent as-is
+- `Buffer`/`Uint8Array`: Sent as-is
 - `string`: Converted to Buffer
 - `object`: JSON stringified and converted to Buffer
 
