@@ -1,5 +1,5 @@
 {
-  "name": "rabbitmq-relay-plugin",
+  "name": "@tazama-lf/rabbitmq-relay-plugin",
   "version": "1.0.0",
   "description": "RabbitMQ plugin for tazama relay service",
   "main": "dist/index.js",
@@ -11,8 +11,6 @@
     "clean": "npx rimraf build node_modules coverage package-lock.json",
     "build": "npx tsc",
     "test": "jest",
-    "version": "npm version patch",
-    "publish": "npm publish",
     "fix:eslint": "eslint --fix \"**/*.ts\"",
     "fix:prettier": "prettier --write \"**/*.ts\"",
     "lint": "npm run lint:eslint && npm run lint:prettier",

@@ -27,7 +27,7 @@ The RabbitMQ Relay Plugin is a transport plugin that enables applications to rel
 ## Installation
 
 ```bash
-npm install rabbitmq-relay-plugin
+npm install @tazama-lf/rabbitmq-relay-plugin
 ```
 
 ## Configuration
@@ -62,7 +62,7 @@ RABBITMQ_TLS_CA=/path/to/ca_certificate.pem
 ### Basic Usage
 
 ```typescript
-import RabbitMQRelayPlugin from 'rabbitmq-relay-plugin';
+import RabbitMQRelayPlugin from '@tazama-lf/rabbitmq-relay-plugin';
 import { LoggerService } from '@tazama-lf/frms-coe-lib';
 import { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 
