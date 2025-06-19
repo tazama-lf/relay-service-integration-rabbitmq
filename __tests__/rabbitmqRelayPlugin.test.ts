@@ -33,8 +33,8 @@ describe('RabbitMQRelayPlugin', () => {
     } as unknown as jest.Mocked<LoggerService>;
 
     mockApm = {
-      startTransaction: jest.fn().mockReturnValue({ end: jest.fn() }),
-      startSpan: jest.fn().mockReturnValue({ end: jest.fn() }),
+      startTransaction: jest.fn().mockReturnValue({ end: jest.fn() } as any),
+      startSpan: jest.fn().mockReturnValue({ end: jest.fn() } as any),
     } as unknown as jest.Mocked<Apm>;
 
     mockChannel = {
@@ -91,33 +91,56 @@ describe('RabbitMQRelayPlugin', () => {
       expect(amqplib.connect).toHaveBeenCalledWith('amqps://prod-rabbitmq:5671', {
         ca: 'CA-FAKE-CONTENT',
       });
+      // TLS connections now also create a channel in the init method
+      expect(mockConnection.createChannel).toHaveBeenCalled();
       expect(mockLoggerService.log).toHaveBeenCalledWith('Connected to RabbitMQ with TLS', expect.any(String));
     });
 
+    it('should throw error when TLS CA is not provided in non-dev environment', async () => {
+      (plugin as any).configuration = {
+        ...(plugin as any).configuration,
+        nodeEnv: 'production',
+        DESTINATION_TRANSPORT_URL: 'amqp://prod-rabbitmq:5672',
+        RABBITMQ_TLS_CA: undefined,
+      };
+
+      await expect(plugin.init()).rejects.toThrow('TLS certificate (RABBITMQ_TLS_CA) is required in non-development environments');
+    });
+
     it('should handle connection errors', async () => {
+      // Ensure we're in dev mode to avoid TLS requirement
+      (plugin as any).configuration = {
+        ...(plugin as any).configuration,
+        nodeEnv: 'dev',
+        DESTINATION_TRANSPORT_URL: 'amqp://localhost:5672',
+      };
+
       const connectionError = new Error('Connection failed');
       (amqplib.connect as jest.Mock).mockRejectedValueOnce(connectionError);
 
-      await plugin.init();
-
+      await expect(plugin.init()).rejects.toThrow('Connection failed');
       expect(mockLoggerService.error).toHaveBeenCalledWith('Failed to connect to RabbitMQ', undefined, 'RabbitMQRelayPlugin');
     });
   });
 
   describe('relay', () => {
     beforeEach(async () => {
+      // Set up dev configuration to avoid TLS requirements
+      (plugin as any).configuration = {
+        nodeEnv: 'dev',
+        DESTINATION_TRANSPORT_URL: 'amqp://localhost:5672',
+        PRODUCER_STREAM: 'test-queue',
+      };
+
       await plugin.init();
       (plugin as any).amqpConnection = mockConnection;
       (plugin as any).amqpChannel = mockChannel;
-      (plugin as any).configuration = {
-        PRODUCER_STREAM: 'test-queue',
-      };
     });
 
     it('should relay buffer data successfully', async () => {
       const bufferData = Buffer.from('test message');
       await plugin.relay(bufferData);
-      expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', bufferData);
+      expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', Buffer.from(bufferData));
       expect(mockApm.startTransaction).toHaveBeenCalledWith('RabbitMQRelayPlugin');
     });
 
@@ -133,17 +156,115 @@ describe('RabbitMQRelayPlugin', () => {
       expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', Buffer.from(JSON.stringify(objectData)));
     });
 
-    it('should log error if relay fails', async () => {
+    it('should log error and throw when relay fails', async () => {
+      const sendError = new Error('Send failed');
       mockChannel.sendToQueue.mockImplementationOnce(() => {
-        throw new Error('Send failed');
+        throw sendError;
       });
-      await plugin.relay('fail-message');
-      expect(mockLoggerService.error).toHaveBeenCalledWith('Failed to relay message to RabbitMQ', '{}', 'RabbitMQRelayPlugin');
+
+      await expect(plugin.relay('fail-message')).rejects.toThrow('Send failed');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        'Failed to relay message to RabbitMQ',
+        JSON.stringify(sendError, null, 4),
+        'RabbitMQRelayPlugin',
+      );
     });
 
     it('should throw error when connection is not initialized', async () => {
       const uninitializedPlugin = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
       await expect(uninitializedPlugin.relay(Buffer.from('test'))).rejects.toThrow('RabbitMQ connection is not initialized');
+    });
+
+    it('should throw error when channel is not initialized', async () => {
+      const pluginWithoutChannel = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
+      (pluginWithoutChannel as any).amqpConnection = mockConnection;
+      // amqpChannel remains undefined
+      await expect(pluginWithoutChannel.relay('test')).rejects.toThrow('RabbitMQ connection is not initialized');
+    });
+
+    it('should handle APM transaction correctly on successful relay', async () => {
+      const mockTransaction = { end: jest.fn() } as any;
+      const mockSpan = { end: jest.fn() } as any;
+      mockApm.startTransaction.mockReturnValue(mockTransaction);
+      mockApm.startSpan.mockReturnValue(mockSpan);
+
+      await plugin.relay('test message');
+
+      expect(mockApm.startTransaction).toHaveBeenCalledWith('RabbitMQRelayPlugin');
+      expect(mockApm.startSpan).toHaveBeenCalledWith('relay');
+      expect(mockSpan.end).toHaveBeenCalled();
+      expect(mockTransaction.end).toHaveBeenCalled();
+    });
+
+    it('should handle APM transaction correctly on relay failure', async () => {
+      const mockTransaction = { end: jest.fn() } as any;
+      const mockSpan = { end: jest.fn() } as any;
+      mockApm.startTransaction.mockReturnValue(mockTransaction);
+      mockApm.startSpan.mockReturnValue(mockSpan);
+
+      const sendError = new Error('Send failed');
+      mockChannel.sendToQueue.mockImplementationOnce(() => {
+        throw sendError;
+      });
+
+      await expect(plugin.relay('fail-message')).rejects.toThrow('Send failed');
+      expect(mockTransaction.end).toHaveBeenCalled();
+    });
+
+    it('should handle null APM span gracefully', async () => {
+      const mockTransaction = { end: jest.fn() } as any;
+      mockApm.startTransaction.mockReturnValue(mockTransaction);
+      mockApm.startSpan.mockReturnValue(null);
+
+      await plugin.relay('test message');
+
+      expect(mockTransaction.end).toHaveBeenCalled();
+      // Should not throw when span is null
+    });
+
+    it('should log relaying message', async () => {
+      await plugin.relay('test message');
+
+      expect(mockLoggerService.log).toHaveBeenCalledWith('Relaying message to RabbitMQ', 'RabbitMQRelayPlugin');
+    });
+
+    it('should handle Uint8Array data correctly', async () => {
+      const uint8ArrayData = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
+      await plugin.relay(Buffer.from(uint8ArrayData));
+
+      expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', Buffer.from(uint8ArrayData));
+    });
+  });
+
+  describe('TLS relay workflow', () => {
+    let tlsPlugin: RabbitMQRelayPlugin;
+
+    beforeEach(() => {
+      tlsPlugin = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
+      // Setup TLS environment
+      (tlsPlugin as any).configuration = {
+        nodeEnv: 'production',
+        DESTINATION_TRANSPORT_URL: 'amqps://prod-rabbitmq:5671',
+        RABBITMQ_TLS_CA: 'ca-file-path.pem',
+        PRODUCER_STREAM: 'test-queue',
+      };
+    });
+
+    it('should work with TLS connection and channel created during init', async () => {
+      await tlsPlugin.init();
+
+      // Verify TLS connection was established and channel was created
+      expect(fs.readFileSync).toHaveBeenCalledWith('ca-file-path.pem', 'utf-8');
+      expect(amqplib.connect).toHaveBeenCalledWith('amqps://prod-rabbitmq:5671', {
+        ca: 'CA-FAKE-CONTENT',
+      });
+      expect(mockConnection.createChannel).toHaveBeenCalled();
+
+      // Now test relay functionality
+      await tlsPlugin.relay('TLS test message');
+
+      expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', Buffer.from('TLS test message'));
+      expect(mockLoggerService.log).toHaveBeenCalledWith('Relaying message to RabbitMQ', 'RabbitMQRelayPlugin');
     });
   });
 });

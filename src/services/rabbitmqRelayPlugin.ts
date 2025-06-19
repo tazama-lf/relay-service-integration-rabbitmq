@@ -5,7 +5,7 @@ import type { LoggerService } from '@tazama-lf/frms-coe-lib';
 import type { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 import { additionalEnvironmentVariables, type Configuration } from '../config';
 import { validateProcessorConfig } from '@tazama-lf/frms-coe-lib/lib/config/processor.config';
-import type { ITransportPlugin } from '../interfaces/ITransport';
+import type { ITransportPlugin } from '@tazama-lf/frms-coe-lib/lib/interfaces/relay-service/ITransportPlugin';
 import fs from 'fs';
 
 export default class RabbitMQRelayPlugin implements ITransportPlugin {
@@ -21,14 +21,35 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
     this.configuration = validateProcessorConfig(additionalEnvironmentVariables) as Configuration;
   }
 
+  /**
+   * Initializes the RabbitMQ connection for the relay plugin.
+   *
+   * This method establishes a connection to RabbitMQ using either TLS or plain connection
+   * based on the environment configuration. In non-development environments with TLS
+   * certificate available, it creates a secure connection. Otherwise, it creates a
+   * standard connection and channel.
+   *
+   * @returns A Promise that resolves when the connection is successfully established
+   * @throws {Error} Throws an error if the connection to RabbitMQ fails
+   *
+   * @remarks
+   * - In production environments with RABBITMQ_TLS_CA configured, uses TLS connection
+   * - In development or when TLS is not configured, uses standard connection
+   * - Creates an AMQP channel only for non-TLS connections
+   * - Logs connection status and server properties for debugging
+   */
   async init(): Promise<void> {
     this.loggerservice.log('RabbitMQ Relay Plugin initialized', RabbitMQRelayPlugin.name);
     try {
-      if (this.configuration.nodeEnv !== 'dev' && this.configuration.RABBITMQ_TLS_CA) {
+      if (this.configuration.nodeEnv !== 'dev') {
+        if (!this.configuration.RABBITMQ_TLS_CA) {
+          throw new Error('TLS certificate (RABBITMQ_TLS_CA) is required in non-development environments');
+        }
         const tlsOptions = {
           ca: fs.readFileSync(this.configuration.RABBITMQ_TLS_CA, 'utf-8'),
         };
         this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL, tlsOptions);
+        this.amqpChannel = await this.amqpConnection.createChannel();
         this.loggerservice.log('Connected to RabbitMQ with TLS', JSON.stringify(this.amqpConnection.connection.serverProperties, null, 4));
       } else {
         this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL);
@@ -41,6 +62,7 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
         JSON.stringify(this.amqpChannel?.connection.serverProperties, null, 4),
         RabbitMQRelayPlugin.name,
       );
+      throw error as Error;
     }
   }
 
@@ -81,6 +103,7 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
       span?.end();
     } catch (error) {
       this.loggerservice.error('Failed to relay message to RabbitMQ', JSON.stringify(error, null, 4), RabbitMQRelayPlugin.name);
+      throw error as Error;
     } finally {
       if (apmTransaction) {
         apmTransaction.end();

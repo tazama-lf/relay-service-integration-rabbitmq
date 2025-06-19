@@ -23,7 +23,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tazama-lf/frms-coe-lib": "^5.0.0",
+    "@tazama-lf/frms-coe-lib": "^5.1.0-rc.1",
     "amqplib": "^0.10.8",
     "dotenv": "^16.5.0",
     "tslib": "^2.8.1"

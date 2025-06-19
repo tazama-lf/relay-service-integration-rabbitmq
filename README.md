@@ -121,7 +121,7 @@ Initializes the RabbitMQ connection and channel. Must be called before using the
 
 - Connection errors are logged but not thrown to allow graceful degradation
 
-#### `relay(data: Uint8Array | string | object): Promise<void>`
+#### `relay(data: Uint8Array | string): Promise<void>`
 
 Relays data to the configured RabbitMQ queue.
 
