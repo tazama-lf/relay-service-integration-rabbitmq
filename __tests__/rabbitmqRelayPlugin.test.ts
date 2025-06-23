@@ -53,7 +53,7 @@ describe('RabbitMQRelayPlugin', () => {
 
     (amqplib.connect as jest.Mock).mockResolvedValue(mockConnection);
 
-    plugin = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
+    plugin = new RabbitMQRelayPlugin();
   });
 
   afterEach(() => {
@@ -69,7 +69,7 @@ describe('RabbitMQRelayPlugin', () => {
         DESTINATION_TRANSPORT_URL: 'amqp://localhost:5672',
       };
 
-      await plugin.init();
+      await plugin.init(mockLoggerService, mockApm);
 
       expect(amqplib.connect).toHaveBeenCalledWith('amqp://localhost:5672');
       expect(mockConnection.createChannel).toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe('RabbitMQRelayPlugin', () => {
         RABBITMQ_TLS_CA: 'ca-file-path.pem',
       };
 
-      await plugin.init();
+      await plugin.init(mockLoggerService, mockApm);
 
       expect(fs.readFileSync).toHaveBeenCalledWith('ca-file-path.pem', 'utf-8');
       expect(amqplib.connect).toHaveBeenCalledWith('amqps://prod-rabbitmq:5671', {
@@ -118,7 +118,7 @@ describe('RabbitMQRelayPlugin', () => {
       const connectionError = new Error('Connection failed');
       (amqplib.connect as jest.Mock).mockRejectedValueOnce(connectionError);
 
-      await expect(plugin.init()).rejects.toThrow('Connection failed');
+      await expect(plugin.init(mockLoggerService, mockApm)).rejects.toThrow('Connection failed');
       expect(mockLoggerService.error).toHaveBeenCalledWith('Failed to connect to RabbitMQ', undefined, 'RabbitMQRelayPlugin');
     });
   });
@@ -132,7 +132,7 @@ describe('RabbitMQRelayPlugin', () => {
         PRODUCER_STREAM: 'test-queue',
       };
 
-      await plugin.init();
+      await plugin.init(mockLoggerService, mockApm);
       (plugin as any).amqpConnection = mockConnection;
       (plugin as any).amqpChannel = mockChannel;
     });
@@ -171,12 +171,12 @@ describe('RabbitMQRelayPlugin', () => {
     });
 
     it('should throw error when connection is not initialized', async () => {
-      const uninitializedPlugin = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
+      const uninitializedPlugin = new RabbitMQRelayPlugin();
       await expect(uninitializedPlugin.relay(Buffer.from('test'))).rejects.toThrow('RabbitMQ connection is not initialized');
     });
 
     it('should throw error when channel is not initialized', async () => {
-      const pluginWithoutChannel = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
+      const pluginWithoutChannel = new RabbitMQRelayPlugin();
       (pluginWithoutChannel as any).amqpConnection = mockConnection;
       // amqpChannel remains undefined
       await expect(pluginWithoutChannel.relay('test')).rejects.toThrow('RabbitMQ connection is not initialized');
@@ -240,7 +240,7 @@ describe('RabbitMQRelayPlugin', () => {
     let tlsPlugin: RabbitMQRelayPlugin;
 
     beforeEach(() => {
-      tlsPlugin = new RabbitMQRelayPlugin(mockLoggerService, mockApm);
+      tlsPlugin = new RabbitMQRelayPlugin();
       // Setup TLS environment
       (tlsPlugin as any).configuration = {
         nodeEnv: 'production',
@@ -251,7 +251,7 @@ describe('RabbitMQRelayPlugin', () => {
     });
 
     it('should work with TLS connection and channel created during init', async () => {
-      await tlsPlugin.init();
+      await tlsPlugin.init(mockLoggerService, mockApm);
 
       // Verify TLS connection was established and channel was created
       expect(fs.readFileSync).toHaveBeenCalledWith('ca-file-path.pem', 'utf-8');

@@ -11,13 +11,11 @@ import fs from 'fs';
 export default class RabbitMQRelayPlugin implements ITransportPlugin {
   private amqpConnection?: ChannelModel;
   private amqpChannel?: Channel;
-  private readonly loggerservice: LoggerService;
-  private readonly apm: Apm;
+  private loggerservice?: LoggerService;
+  private apm?: Apm;
   private readonly configuration: Configuration;
 
-  constructor(loggerService: LoggerService, apm: Apm) {
-    this.loggerservice = loggerService;
-    this.apm = apm;
+  constructor() {
     this.configuration = validateProcessorConfig(additionalEnvironmentVariables) as Configuration;
   }
 
@@ -28,7 +26,8 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
    * based on the environment configuration. In non-development environments with TLS
    * certificate available, it creates a secure connection. Otherwise, it creates a
    * standard connection and channel.
-   *
+   * @param loggerService - Optional logger service for logging operations.
+   * @param apm - Optional APM service for performance monitoring.
    * @returns A Promise that resolves when the connection is successfully established
    * @throws {Error} Throws an error if the connection to RabbitMQ fails
    *
@@ -38,8 +37,10 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
    * - Creates an AMQP channel only for non-TLS connections
    * - Logs connection status and server properties for debugging
    */
-  async init(): Promise<void> {
-    this.loggerservice.log('RabbitMQ Relay Plugin initialized', RabbitMQRelayPlugin.name);
+  async init(loggerService?: LoggerService, apm?: Apm): Promise<void> {
+    this.loggerservice = loggerService;
+    this.apm = apm;
+    this.loggerservice?.log('RabbitMQ Relay Plugin initialized', RabbitMQRelayPlugin.name);
     try {
       if (this.configuration.nodeEnv !== 'dev') {
         if (!this.configuration.RABBITMQ_TLS_CA) {
@@ -50,14 +51,14 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
         };
         this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL, tlsOptions);
         this.amqpChannel = await this.amqpConnection.createChannel();
-        this.loggerservice.log('Connected to RabbitMQ with TLS', JSON.stringify(this.amqpConnection.connection.serverProperties, null, 4));
+        this.loggerservice?.log('Connected to RabbitMQ with TLS', JSON.stringify(this.amqpConnection.connection.serverProperties, null, 4));
       } else {
         this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL);
         this.amqpChannel = await this.amqpConnection.createChannel();
-        this.loggerservice.log('Connected to RabbitMQ', RabbitMQRelayPlugin.name);
+        this.loggerservice?.log('Connected to RabbitMQ', RabbitMQRelayPlugin.name);
       }
     } catch (error) {
-      this.loggerservice.error(
+      this.loggerservice?.error(
         'Failed to connect to RabbitMQ',
         JSON.stringify(this.amqpChannel?.connection.serverProperties, null, 4),
         RabbitMQRelayPlugin.name,
@@ -85,10 +86,10 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
       throw new Error('RabbitMQ connection is not initialized');
     }
     try {
-      apmTransaction = this.apm.startTransaction(RabbitMQRelayPlugin.name);
-      const span = this.apm.startSpan('relay');
+      apmTransaction = this.apm?.startTransaction(RabbitMQRelayPlugin.name);
+      const span = this.apm?.startSpan('relay');
 
-      this.loggerservice.log('Relaying message to RabbitMQ', RabbitMQRelayPlugin.name);
+      this.loggerservice?.log('Relaying message to RabbitMQ', RabbitMQRelayPlugin.name);
 
       let payload: Uint8Array | string | undefined;
       if (Buffer.isBuffer(data)) {
@@ -102,7 +103,7 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
       this.amqpChannel.sendToQueue(this.configuration.PRODUCER_STREAM, Buffer.from(payload));
       span?.end();
     } catch (error) {
-      this.loggerservice.error('Failed to relay message to RabbitMQ', JSON.stringify(error, null, 4), RabbitMQRelayPlugin.name);
+      this.loggerservice?.error('Failed to relay message to RabbitMQ', JSON.stringify(error, null, 4), RabbitMQRelayPlugin.name);
       throw error as Error;
     } finally {
       if (apmTransaction) {

@@ -67,12 +67,12 @@ import { LoggerService } from '@tazama-lf/frms-coe-lib';
 import { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 
 // Initialize the plugin
-const logger = new LoggerService();
+const loggerService = new LoggerService();
 const apm = new Apm();
-const plugin = new RabbitMQRelayPlugin(logger, apm);
+const plugin = new RabbitMQRelayPlugin();
 
 // Initialize the connection
-await plugin.init();
+await plugin.init(loggerService, apm);
 
 // Relay different types of data
 await plugin.relay(Buffer.from('Hello, RabbitMQ!'));
@@ -84,7 +84,7 @@ await plugin.relay({ message: 'Hello, RabbitMQ!', timestamp: Date.now() });
 
 ```typescript
 try {
-  await plugin.init();
+  await plugin.init(loggerService, apm);
   await plugin.relay(myData);
 } catch (error) {
   console.error('Failed to relay message:', error);
@@ -93,24 +93,16 @@ try {
 
 ## API Reference
 
-### Constructor
+### Methods
 
-```typescript
-constructor(loggerService: LoggerService, apm: Apm)
-```
+#### `init(loggerService?: LoggerService, apm?: Apm): Promise<void>`
 
-Creates a new instance of the RabbitMQ relay plugin.
+Initializes the RabbitMQ connection and channel. Must be called before using the `relay` method.
 
 **Parameters:**
 
-- `loggerService`: Logger service for application logging
-- `apm`: Application Performance Monitoring service
-
-### Methods
-
-#### `init(): Promise<void>`
-
-Initializes the RabbitMQ connection and channel. Must be called before using the `relay` method.
+- `loggerService`: Service instance for handling application logging and monitoring operations
+- `apm`: Application Performance Monitoring service for tracking metrics, errors, and performance data
 
 **Behavior:**
 
