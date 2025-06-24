@@ -71,7 +71,7 @@ describe('RabbitMQRelayPlugin', () => {
 
       await plugin.init(mockLoggerService, mockApm);
 
-      expect(amqplib.connect).toHaveBeenCalledWith('amqp://localhost:5672');
+      expect(amqplib.connect).toHaveBeenCalledWith('amqp://localhost:5672', {});
       expect(mockConnection.createChannel).toHaveBeenCalled();
       expect(mockLoggerService.log).toHaveBeenCalledWith('RabbitMQ Relay Plugin initialized', 'RabbitMQRelayPlugin');
       expect(mockLoggerService.log).toHaveBeenCalledWith('Connected to RabbitMQ', 'RabbitMQRelayPlugin');
@@ -93,7 +93,7 @@ describe('RabbitMQRelayPlugin', () => {
       });
       // TLS connections now also create a channel in the init method
       expect(mockConnection.createChannel).toHaveBeenCalled();
-      expect(mockLoggerService.log).toHaveBeenCalledWith('Connected to RabbitMQ with TLS', expect.any(String));
+      expect(mockLoggerService.log).toHaveBeenCalledWith('Connected to RabbitMQ', 'RabbitMQRelayPlugin');
     });
 
     it('should throw error when TLS CA is not provided in non-dev environment', async () => {

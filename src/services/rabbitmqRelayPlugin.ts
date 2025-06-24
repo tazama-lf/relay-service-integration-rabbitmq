@@ -7,6 +7,7 @@ import { additionalEnvironmentVariables, type Configuration } from '../config';
 import { validateProcessorConfig } from '@tazama-lf/frms-coe-lib/lib/config/processor.config';
 import type { ITransportPlugin } from '@tazama-lf/frms-coe-lib/lib/interfaces/relay-service/ITransportPlugin';
 import fs from 'fs';
+import type { TlsOptions } from 'tls';
 
 export default class RabbitMQRelayPlugin implements ITransportPlugin {
   private amqpConnection?: ChannelModel;
@@ -41,22 +42,19 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
     this.loggerservice = loggerService;
     this.apm = apm;
     this.loggerservice?.log('RabbitMQ Relay Plugin initialized', RabbitMQRelayPlugin.name);
+    let tlsOptions: TlsOptions | undefined = {};
     try {
       if (this.configuration.nodeEnv !== 'dev') {
         if (!this.configuration.RABBITMQ_TLS_CA) {
           throw new Error('TLS certificate (RABBITMQ_TLS_CA) is required in non-development environments');
         }
-        const tlsOptions = {
+        tlsOptions = {
           ca: fs.readFileSync(this.configuration.RABBITMQ_TLS_CA, 'utf-8'),
         };
-        this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL, tlsOptions);
-        this.amqpChannel = await this.amqpConnection.createChannel();
-        this.loggerservice?.log('Connected to RabbitMQ with TLS', JSON.stringify(this.amqpConnection.connection.serverProperties, null, 4));
-      } else {
-        this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL);
-        this.amqpChannel = await this.amqpConnection.createChannel();
-        this.loggerservice?.log('Connected to RabbitMQ', RabbitMQRelayPlugin.name);
       }
+      this.amqpConnection = await amqplib.connect(this.configuration.DESTINATION_TRANSPORT_URL, tlsOptions);
+      this.amqpChannel = await this.amqpConnection.createChannel();
+      this.loggerservice?.log('Connected to RabbitMQ', RabbitMQRelayPlugin.name);
     } catch (error) {
       this.loggerservice?.error(
         'Failed to connect to RabbitMQ',

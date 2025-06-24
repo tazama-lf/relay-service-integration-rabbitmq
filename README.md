@@ -87,7 +87,7 @@ try {
   await plugin.init(loggerService, apm);
   await plugin.relay(myData);
 } catch (error) {
-  console.error('Failed to relay message:', error);
+  loggerService.error('Failed to relay message:', error);
 }
 ```
 
