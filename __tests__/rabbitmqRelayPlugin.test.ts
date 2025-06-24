@@ -150,12 +150,6 @@ describe('RabbitMQRelayPlugin', () => {
       expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', Buffer.from(stringData));
     });
 
-    it('should relay object data successfully', async () => {
-      const objectData = { key: 'value' };
-      await plugin.relay(objectData as any);
-      expect(mockChannel.sendToQueue).toHaveBeenCalledWith('test-queue', Buffer.from(JSON.stringify(objectData)));
-    });
-
     it('should log error and throw when relay fails', async () => {
       const sendError = new Error('Send failed');
       mockChannel.sendToQueue.mockImplementationOnce(() => {

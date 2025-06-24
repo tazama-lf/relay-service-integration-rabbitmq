@@ -10,7 +10,7 @@ The RabbitMQ Relay Plugin is a transport plugin that enables applications to rel
 
 - Connect to RabbitMQ with configurable connection settings (dev and production)
 - Support for TLS/SSL connections with CA certificate validation
-- Publish various data types (Buffer, string, object) to configurable queues
+- Publish various data types (Buffer, string) to configurable queues
 - Automatic data type conversion and serialization
 - APM integration for distributed tracing and monitoring
 - Detailed logging for debugging and operational visibility
@@ -119,7 +119,7 @@ Relays data to the configured RabbitMQ queue.
 
 **Parameters:**
 
-- `data`: Data to relay (supports Buffer, string, or object types)
+- `data`: Data to relay (supports Buffer, string)
 
 **Throws:**
 
@@ -129,7 +129,6 @@ Relays data to the configured RabbitMQ queue.
 
 - `Buffer`/`Uint8Array`: Sent as-is
 - `string`: Converted to Buffer
-- `object`: JSON stringified and converted to Buffer
 
 ## Development
 

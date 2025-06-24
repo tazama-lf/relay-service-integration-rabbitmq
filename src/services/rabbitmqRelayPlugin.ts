@@ -89,16 +89,7 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
 
       this.loggerservice?.log('Relaying message to RabbitMQ', RabbitMQRelayPlugin.name);
 
-      let payload: Uint8Array | string | undefined;
-      if (Buffer.isBuffer(data)) {
-        payload = data;
-      } else if (typeof data === 'string') {
-        payload = data;
-      } else {
-        payload = JSON.stringify(data);
-      }
-
-      this.amqpChannel.sendToQueue(this.configuration.PRODUCER_STREAM, Buffer.from(payload));
+      this.amqpChannel.sendToQueue(this.configuration.PRODUCER_STREAM, Buffer.from(data));
       span?.end();
     } catch (error) {
       this.loggerservice?.error('Failed to relay message to RabbitMQ', JSON.stringify(error, null, 4), RabbitMQRelayPlugin.name);
