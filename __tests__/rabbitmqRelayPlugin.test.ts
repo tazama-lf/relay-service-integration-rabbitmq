@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 import amqplib from 'amqplib';
-import fs from 'fs';
+import fs from 'node:fs';
 import { LoggerService } from '@tazama-lf/frms-coe-lib';
 import { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 import RabbitMQRelayPlugin from '../src/services/rabbitmqRelayPlugin';
 
 jest.mock('amqplib');
-jest.mock('fs');
+jest.mock('node:fs');
 jest.mock('@tazama-lf/frms-coe-lib/lib/config/processor.config', () => ({
   validateProcessorConfig: jest.fn().mockReturnValue({
     nodeEnv: 'dev',
