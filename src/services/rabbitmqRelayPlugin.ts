@@ -6,8 +6,8 @@ import type { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 import { additionalEnvironmentVariables, type Configuration } from '../config';
 import { validateProcessorConfig } from '@tazama-lf/frms-coe-lib/lib/config/processor.config';
 import type { ITransportPlugin } from '@tazama-lf/frms-coe-lib/lib/interfaces/relay-service/ITransportPlugin';
-import fs from 'fs';
-import type { TlsOptions } from 'tls';
+import fs from 'node:fs';
+import type { TlsOptions } from 'node:tls';
 
 export default class RabbitMQRelayPlugin implements ITransportPlugin {
   private amqpConnection?: ChannelModel;
@@ -56,9 +56,10 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
       this.amqpChannel = await this.amqpConnection.createChannel();
       this.loggerservice?.log('Connected to RabbitMQ', RabbitMQRelayPlugin.name);
     } catch (error) {
+      const SPACE = 4;
       this.loggerservice?.error(
         'Failed to connect to RabbitMQ',
-        JSON.stringify(this.amqpChannel?.connection.serverProperties, null, 4),
+        JSON.stringify(this.amqpChannel?.connection.serverProperties, null, SPACE),
         RabbitMQRelayPlugin.name,
       );
       throw error as Error;
@@ -92,8 +93,9 @@ export default class RabbitMQRelayPlugin implements ITransportPlugin {
       this.amqpChannel.sendToQueue(this.configuration.PRODUCER_STREAM, Buffer.from(data));
       span?.end();
     } catch (error) {
-      this.loggerservice?.error('Failed to relay message to RabbitMQ', JSON.stringify(error, null, 4), RabbitMQRelayPlugin.name);
-      throw error as Error;
+      const SPACE = 4;
+      this.loggerservice?.error('Failed to relay message to RabbitMQ', JSON.stringify(error, null, SPACE), RabbitMQRelayPlugin.name);
+      await Promise.reject(error as Error);
     } finally {
       if (apmTransaction) {
         apmTransaction.end();
