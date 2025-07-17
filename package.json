@@ -1,6 +1,6 @@
 {
   "name": "@tazama-lf/rabbitmq-relay-plugin",
-  "version": "1.0.0",
+  "version": "2.1.1-rc",
   "description": "RabbitMQ plugin for tazama relay service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
