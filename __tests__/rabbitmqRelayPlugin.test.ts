@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import amqplib from 'amqplib';
-import fs from 'fs';
+import fs from 'node:fs';
 import { LoggerService } from '@tazama-lf/frms-coe-lib';
 import { Apm } from '@tazama-lf/frms-coe-lib/lib/services/apm';
 import RabbitMQRelayPlugin from '../src/services/rabbitmqRelayPlugin';
+import * as util from 'node:util';
 
 jest.mock('amqplib');
-jest.mock('fs');
+jest.mock('node:fs');
 jest.mock('@tazama-lf/frms-coe-lib/lib/config/processor.config', () => ({
   validateProcessorConfig: jest.fn().mockReturnValue({
     nodeEnv: 'dev',
@@ -119,7 +120,11 @@ describe('RabbitMQRelayPlugin', () => {
       (amqplib.connect as jest.Mock).mockRejectedValueOnce(connectionError);
 
       await expect(plugin.init(mockLoggerService, mockApm)).rejects.toThrow('Connection failed');
-      expect(mockLoggerService.error).toHaveBeenCalledWith('Failed to connect to RabbitMQ', undefined, 'RabbitMQRelayPlugin');
+      expect(mockLoggerService.error).toHaveBeenCalledWith(
+        'Failed to connect to RabbitMQ',
+        util.inspect(connectionError),
+        'RabbitMQRelayPlugin',
+      );
     });
   });
 
@@ -159,7 +164,7 @@ describe('RabbitMQRelayPlugin', () => {
       await expect(plugin.relay('fail-message')).rejects.toThrow('Send failed');
       expect(mockLoggerService.error).toHaveBeenCalledWith(
         'Failed to relay message to RabbitMQ',
-        JSON.stringify(sendError, null, 4),
+        util.inspect(sendError),
         'RabbitMQRelayPlugin',
       );
     });

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import * as dotenv from 'dotenv';
-import path from 'path';
+import path from 'node:path';
 import type { AdditionalConfig, ProcessorConfig } from '@tazama-lf/frms-coe-lib/lib/config/processor.config';
 
 dotenv.config({
