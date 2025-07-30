@@ -1,12 +1,16 @@
 {
   "name": "@tazama-lf/rabbitmq-relay-plugin",
-  "version": "1.0.0",
-  "description": "RabbitMQ plugin for tazama relay service",
+  "version": "2.2.0",
+  "description": "Tazama relay-service plug-in for RabbitMQ integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist/**/*"
   ],
+  "publishConfig": {
+    "@tazama-lf:registry": "https://npm.pkg.github.com/",
+    "access": "public"
+  },
   "scripts": {
     "clean": "npx rimraf build node_modules coverage package-lock.json",
     "build": "npx tsc",
@@ -20,10 +24,10 @@
     "lint:prettier": "prettier --check \"**/*.ts\"",
     "prepare": "husky"
   },
-  "author": "Umair Khan",
+  "author": "Tazama.org",
   "license": "Apache-2.0",
   "dependencies": {
-    "@tazama-lf/frms-coe-lib": "5.1.0-rc.7",
+    "@tazama-lf/frms-coe-lib": "5.1.0",
     "amqplib": "^0.10.8",
     "dotenv": "^17.2.0",
     "tslib": "^2.8.1"
